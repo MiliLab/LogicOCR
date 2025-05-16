@@ -1,0 +1,34 @@
+[
+    {
+        "id": 0,
+        "context": "There are five teams participating in the game. The audience had the following comments on the results? (1) The champion is either the Shannan team or the Jiangbei team.(2) The champion is neither Shanbei nor Jiangnan.(3) The champion is Jiangnan Team.(4) The champion is not the Shannan team.",
+        "question": "The result of the match showed that only one argument was correct, so who won the championship?",
+        "choices": "A. Shannan\nB. Jiangnan\nC. Shanbei\nD. Jiangbei",
+        "solution": "C",
+        "caption_or_not": "yes",
+        "caption": "The background scene depicts a vibrant stadium filled with excited spectators cheering for their favorite teams. Five teams are competing in a lively game, each showcasing unique uniforms and spirited fan sections. The atmosphere is electric as the audience discusses the potential champions, with varied opinions echoing through the stands, reflecting the conflicting statements about which team might win.",
+        "handwritten": "no",
+        "tokens": 108
+    },
+    {
+        "id": 1,
+        "context": "The modern French thinker Pascal argued as follows: There is either a Christian God or there isn't. Assuming you believe in the existence of God and live according to the Christian way, if God indeed exists, you will receive infinite blessings; if God does not exist, what you lose would be very little. However, if you do not believe in the existence of God and do not live according to the Christian way, if God indeed does not exist, you won't lose anything; but if God indeed exists, you will suffer infinite punishment. Therefore, there's no need to hesitate anymore, choose to believe in the existence of God and live according to the Christian way.",
+        "question": "Which of the following most reasonably explains the logical flaw in this argument?",
+        "choices": "A. The argument incorrectly assumes that one can arbitrarily choose whether to believe in the existence of God.\nB. Pascal corrupts faith by turning it into a self-interest calculation issue.\nC. If God does not exist, choosing to believe in God would lead us to have a mistaken understanding of the world, living a life in confusion.\nD. This world has multiple religions, each with an omnipotent god (God) who will impose infinite punishment on those who do not believe in them.",
+        "solution": "D",
+        "caption_or_not": "yes",
+        "caption": "The background scene depicts a serene yet contemplative library, filled with towering shelves of ancient and modern texts. At the center stands a large wooden table, covered with books and papers, where Pascal might have pondered his famous wager. The walls are adorned with murals illustrating scenes from both religious and secular history, symbolizing the eternal debate between faith and reason. Soft, warm light filters through high windows, casting a gentle glow over the room, evoking a sense of calm reflection and intellectual exploration.",
+        "handwritten": "yes",
+        "tokens": 246
+    },
+    {
+        "id": 2,
+        "context": "Like \"XX Group holds its anniversary celebration, your mobile number has won a grand prize of 1 million yuan,\" such unsophisticated mobile phone scam messages still appear repeatedly even after being exposed by the media. Professional scammers would rather use low-quality scam messages than design more deceptive ones that are easier to trick people with, which can only indicate that the scammers are too foolish and unprofessional.",
+        "question": "If the above statement is true, which of the following options most strongly refutes the conclusion above?",
+        "choices": "A. Scammers must be clever; otherwise, they wouldn't be able to deceive others.\nB. When scammers carry out fraud, they try their best not to attract the attention of the police.\nC. If a scam method proves ineffective, scammers will abandon it long ago.\nD. Scammers use such messages to \"fish out\" those who might fall for them, hoping to filter out smart individuals from the start.",
+        "solution": "C",
+        "caption_or_not": "no",
+        "handwritten": "yes",
+        "tokens": 187
+    }
+]

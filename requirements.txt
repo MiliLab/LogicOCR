@@ -1,0 +1,10 @@
+dashscope==1.23.2
+jieba==0.42.1
+nltk==3.9.1
+numpy==1.26.4
+openai==1.66.3
+qwen-vl-utils==0.0.10
+rouge==1.0.1
+timm==1.0.15
+tqdm==4.67.1
+pandas

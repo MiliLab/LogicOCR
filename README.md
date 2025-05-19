@@ -11,10 +11,14 @@
 </div>
 
 <h5 align="center">
-<a href="https://huggingface.co/datasets/MiliLab/LogicOCR"><img src="https://img.shields.io/badge/%20HuggingFace-LogicOCR-FFD43B.svg?logo=huggingface"></a>
+<a href="https://arxiv.org/abs/2504.02404"> <img src="https://img.shields.io/badge/Arxiv-2504.02404-b31b1b.svg?logo=arXiv"></a><a href="https://ymy-k.github.io/LogicOCR.github.io/"> <img src="https://img.shields.io/badge/Project-LogicOCR-4183C4.svg?logo=Github"></a><a href="https://huggingface.co/datasets/MiliLab/LogicOCR"><img src="https://img.shields.io/badge/%20HuggingFace-LogicOCR-FFD43B.svg?logo=huggingface"></a><a><img src="https://visitor-badge.laobi.icu/badge?page_id=MiliLab.LogicOCR"></a>
 </h5>
 
-
+<figure>
+<div align="center">
+<img src=assets/LogicOCR_logo.png width="20%">
+</div>
+</figure>
 # 👋 Introduction
 
 We introduce LogicOCR, a benchmark comprising 1,100 multiple-choice questions designed to evaluate the logical reasoning abilities of Large Multimodal Models (LMMs) on text-rich images, while minimizing reliance on domain-specific knowledge (*e.g*., mathematics). We construct LogicOCR by developing a scalable, automated pipeline to convert raw text corpora into multimodal samples. First, we design prompt templates to steer GPT-Image-1 to generate images with diverse backgrounds, interleaved text-illustration layouts, and varied fonts, ensuring contextual relevance and visual realism. Then, the generated images are manually verified, with low-quality examples discarded. We evaluate a range of representative open-source and proprietary LMMs under both Chain-of-Thought (CoT) and direct-answer settings. 
@@ -95,5 +99,10 @@ The inference script is modified from [OCRBench](https://github.com/Yuliang-Liu/
 If you find LogicOCR helpful, please consider giving this repo a :star: and citing:
 
 ```latex
-
+@article{ye2025logicocr,
+  title={LogicOCR: Do Your Large Multimodal Models Excel at Logical Reasoning on Text-Rich Images?},
+  author={Maoyuan Ye and Jing Zhang and Juhua Liu and Bo Du and Dacheng Tao},
+  journal={arXiv preprint arXiv:},
+  year={2025}
+}
 ```

@@ -11,7 +11,7 @@
 </div>
 
 <h5 align="center">
-<a href="https://arxiv.org/abs/"> <img src="https://img.shields.io/badge/Arxiv-2504.02404-b31b1b.svg?logo=arXiv"></a> <a href="https://ymy-k.github.io/LogicOCR.github.io/"> <img src="https://img.shields.io/badge/Project-LogicOCR-4183C4.svg?logo=Github"></a> <a href="https://huggingface.co/datasets/MiliLab/LogicOCR"><img src="https://img.shields.io/badge/%20HuggingFace-LogicOCR-FFD43B.svg?logo=huggingface"></a> <a><img src="https://visitor-badge.laobi.icu/badge?page_id=MiliLab.LogicOCR"></a>
+<a href="https://arxiv.org/abs/2505.12307"> <img src="https://img.shields.io/badge/Arxiv-2505.12307-b31b1b.svg?logo=arXiv"></a> <a href="https://ymy-k.github.io/LogicOCR.github.io/"> <img src="https://img.shields.io/badge/Project-LogicOCR-4183C4.svg?logo=Github"></a> <a href="https://huggingface.co/datasets/MiliLab/LogicOCR"><img src="https://img.shields.io/badge/%20HuggingFace-LogicOCR-FFD43B.svg?logo=huggingface"></a> <a><img src="https://visitor-badge.laobi.icu/badge?page_id=MiliLab.LogicOCR"></a>
 </h5>
 
 <figure>
@@ -103,7 +103,7 @@ If you find LogicOCR helpful, please consider giving this repo a :star: and citi
 @article{ye2025logicocr,
   title={LogicOCR: Do Your Large Multimodal Models Excel at Logical Reasoning on Text-Rich Images?},
   author={Maoyuan Ye and Jing Zhang and Juhua Liu and Bo Du and Dacheng Tao},
-  journal={arXiv preprint arXiv:},
+  journal={arXiv preprint arXiv:2505.12307},
   year={2025}
 }
 ```

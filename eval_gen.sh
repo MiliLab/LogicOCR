@@ -1,6 +1,6 @@
 MODEL_PATH="your LMM path"
-IMAGE_FOLDER="your saved image folder containing LogicOCR images"
-JSON_FILE="path to LogicOCR.json"
+IMAGE_FOLDER="your saved image folder containing LogicOCR-Gen images"
+JSON_FILE="path to LogicOCR_gen.json"
 
 OUTPUT_FOLDER="./res"
 NUM_WORKERS=8
@@ -22,7 +22,7 @@ python infer_models/qwen2_5_vl.py \
 # python infer_models/qwen2_5_vl.py \
 #   --model_path Qwen/Qwen2.5-VL-72B-Instruct \
 #   --image_folder ./images \
-#   --json_file LogicOCR.json \
+#   --json_file LogicOCR_gen.json \
 #   --output_folder ./res \
 #   --num_workers 8 \
 #   --lmm_input_modal "image-text" \

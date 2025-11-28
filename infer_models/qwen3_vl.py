@@ -3,16 +3,13 @@ import json
 from argparse import ArgumentParser
 from tqdm import tqdm
 import re
-from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
+from transformers import AutoProcessor, Qwen3VLForConditionalGeneration
 import torch
 import multiprocessing
 from multiprocessing import Pool, Queue, Manager
-try:
-    from qwen_vl_utils import process_vision_info
-except Exception as err:
-    print("qwen_vl_utils not found, please install it via 'pip install qwen-vl-utils'")
-    raise err
 import os
+import random
+random.seed(1234)
 
 
 DIRECT_PROMPT = "Directly answer the question with one option letter without explanation."
@@ -118,7 +115,7 @@ def parse_response(response, ans: str):
             
 def _get_args():
     parser = ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="Qwen/Qwen2.5-VL-7B-Instruct")
+    parser.add_argument("--model_path", type=str, default="Qwen/Qwen3-VL-4B-Instruct")
     parser.add_argument("--image_folder", type=str, default="./images")
     parser.add_argument("--json_file", type=str, default="LogicOCR.json")
     parser.add_argument("--output_folder", type=str, default="./res")
@@ -126,21 +123,18 @@ def _get_args():
     parser.add_argument("--answer_directly", action='store_true')
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--verbose", action='store_true')
-    parser.add_argument("--auto_device", action='store_true')
     args = parser.parse_args()
     return args
 
 
 def infer_worker(args, data, eval_id, output_queue):
     device =  f"cuda:{eval_id}"
-    if args.auto_device:
-        device = "auto"
     image_root = args.image_folder
     input_modal = args.lmm_input_modal
     model_path = args.model_path
     verbose = args.verbose
     
-    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+    model = Qwen3VLForConditionalGeneration.from_pretrained(
             model_path,
             torch_dtype=torch.bfloat16,
             device_map=device,
@@ -149,8 +143,7 @@ def infer_worker(args, data, eval_id, output_queue):
     processor = AutoProcessor.from_pretrained(model_path)
     generate_kwargs = dict(
             max_new_tokens=2048,
-            temperature=0.01,
-            use_cache=True,
+            do_sample=False,
         )
 
     for item in tqdm(data):
@@ -182,21 +175,14 @@ def infer_worker(args, data, eval_id, output_queue):
             print("Unknown input modal.")
             raise ValueError
         
-        text = processor.apply_chat_template(
+        inputs = processor.apply_chat_template(
             messages,
-            tokenize=False,
+            tokenize=True,
             add_generation_prompt=True,
-            )
-
-        image_inputs, video_inputs = process_vision_info(messages)
-        
-        inputs = processor(
-            text=[text],
-            images=image_inputs,
-            videos=video_inputs,
-            padding=True,
-            return_tensors="pt",
-            ).to(model.device)
+            return_dict=True,
+            return_tensors="pt"
+        )
+        inputs = inputs.to(model.device)
 
         generated_ids = model.generate(**inputs, **generate_kwargs)
         generated_ids = [
@@ -247,6 +233,7 @@ if __name__ == "__main__":
             )
     pool.close()
     pool.join()
+    # infer_worker(args, data_list[0], 0, output_queue)
     
     results = {}
     while not output_queue.empty():
@@ -256,9 +243,10 @@ if __name__ == "__main__":
     for i in range(len(data_list)):
         data.extend(results[i])
     
-    log_path = os.path.join(args.output_folder, model_name + f'_{args.lmm_input_modal}_{answer_mode}.json')
-    save_json(data, log_path)
-    print(f"save the predictions to {log_path}")
     
     scores = [dd["score"] for dd in data]
     print(f"Average score: {sum(scores)/len(scores)}")
+    
+    log_path = os.path.join(args.output_folder, model_name + f'_{args.lmm_input_modal}_{answer_mode}.json')
+    save_json(data, log_path)
+    print(f"save the predictions to {log_path}")

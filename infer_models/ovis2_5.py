@@ -3,16 +3,16 @@ import json
 from argparse import ArgumentParser
 from tqdm import tqdm
 import re
-from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
+from transformers import AutoModel, AutoTokenizer, AutoModelForCausalLM
 import torch
+import torchvision.transforms as T
+from torchvision.transforms.functional import InterpolationMode
+from PIL import Image
 import multiprocessing
 from multiprocessing import Pool, Queue, Manager
-try:
-    from qwen_vl_utils import process_vision_info
-except Exception as err:
-    print("qwen_vl_utils not found, please install it via 'pip install qwen-vl-utils'")
-    raise err
 import os
+import random
+random.seed(1234)
 
 
 DIRECT_PROMPT = "Directly answer the question with one option letter without explanation."
@@ -30,11 +30,9 @@ def split_list(lst, n):
     result.append(lst[(n-1)*avg:])
     return result 
 
-
 def save_json(json_list, save_path):
     with open(save_path, 'w') as file:
         json.dump(json_list, file, indent=4)
-
 
 def parse_response(response, ans: str):
     """
@@ -118,7 +116,7 @@ def parse_response(response, ans: str):
             
 def _get_args():
     parser = ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="Qwen/Qwen2.5-VL-7B-Instruct")
+    parser.add_argument("--model_path", type=str, default="AIDC-AI/Ovis2.5-2B")
     parser.add_argument("--image_folder", type=str, default="./images")
     parser.add_argument("--json_file", type=str, default="LogicOCR.json")
     parser.add_argument("--output_folder", type=str, default="./res")
@@ -140,71 +138,51 @@ def infer_worker(args, data, eval_id, output_queue):
     model_path = args.model_path
     verbose = args.verbose
     
-    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(
             model_path,
             torch_dtype=torch.bfloat16,
-            device_map=device,
-            attn_implementation="flash_attention_2"
+            trust_remote_code=True,
+            device_map=device
         ).eval()
-    processor = AutoProcessor.from_pretrained(model_path)
     generate_kwargs = dict(
             max_new_tokens=2048,
-            temperature=0.01,
-            use_cache=True,
+            do_sample=False,
         )
 
     for item in tqdm(data):
-        if input_modal == "text":
-            problem = 'Question: '+item["context"].strip()+' '+item["question"].strip()+'\nOptions:\n'+item["choices"]
+        
+        if input_modal == "image-text":
             if args.answer_directly:
-                prompt = problem + '\n' + DIRECT_PROMPT
+                query = DIRECT_MM_PROMPT
             else:
-                prompt = problem + '\n' + CoT_PROMPT
-            messages = [
-                {"role": "user", "content": [{"type": "text", "text": prompt}]}
-            ]
-        elif input_modal == "image-text":
-            image_path = os.path.join(image_root, item["image"])
-            if args.answer_directly:
-                prompt = DIRECT_MM_PROMPT
-            else:
-                prompt = CoT_MM_PROMPT
-            messages = [
-                {
-                    "role": "user", 
-                    "content": [
-                        {"type": "image", "image": image_path},
-                        {"type": "text", "text": prompt}
-                    ]
-                }
-            ]
+                query = CoT_MM_PROMPT
         else:
             print("Unknown input modal.")
             raise ValueError
         
-        text = processor.apply_chat_template(
-            messages,
-            tokenize=False,
+        messages = [{
+            "role": "user",
+            "content": [
+                {"type": "image", "image": Image.open(os.path.join(image_root, item["image"])).convert("RGB")},
+                {"type": "text", "text": query},
+            ],
+        }]
+        input_ids, pixel_values, grid_thws = model.preprocess_inputs(
+            messages=messages,
             add_generation_prompt=True,
-            )
-
-        image_inputs, video_inputs = process_vision_info(messages)
-        
-        inputs = processor(
-            text=[text],
-            images=image_inputs,
-            videos=video_inputs,
-            padding=True,
-            return_tensors="pt",
-            ).to(model.device)
-
-        generated_ids = model.generate(**inputs, **generate_kwargs)
-        generated_ids = [
-            out_ids[inputs.input_ids.shape[1]:] for out_ids in generated_ids
-        ]
-        response = processor.batch_decode(
-            generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
-            )[0]
+            enable_thinking=False
+        )
+        input_ids = input_ids.to(model.device)
+        pixel_values = pixel_values.to(model.device) if pixel_values is not None else None
+        grid_thws = grid_thws.to(model.device) if grid_thws is not None else None
+        outputs = model.generate(
+            **generate_kwargs,
+            inputs=input_ids,
+            pixel_values=pixel_values,
+            grid_thws=grid_thws,
+            enable_thinking=False
+        )
+        response = model.text_tokenizer.decode(outputs[0], skip_special_tokens=True)
         item["response"] = response
         
         score = 0
@@ -247,6 +225,7 @@ if __name__ == "__main__":
             )
     pool.close()
     pool.join()
+    # infer_worker(args, data_list[0], 0, output_queue)
     
     results = {}
     while not output_queue.empty():
@@ -256,9 +235,10 @@ if __name__ == "__main__":
     for i in range(len(data_list)):
         data.extend(results[i])
     
-    log_path = os.path.join(args.output_folder, model_name + f'_{args.lmm_input_modal}_{answer_mode}.json')
-    save_json(data, log_path)
-    print(f"save the predictions to {log_path}")
     
     scores = [dd["score"] for dd in data]
     print(f"Average score: {sum(scores)/len(scores)}")
+    
+    log_path = os.path.join(args.output_folder, model_name + f'_{args.lmm_input_modal}_{answer_mode}.json')
+    save_json(data, log_path)
+    print(f"save the predictions to {log_path}")

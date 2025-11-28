@@ -3,21 +3,19 @@ import json
 from argparse import ArgumentParser
 from tqdm import tqdm
 import re
-from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 import torch
 import multiprocessing
 from multiprocessing import Pool, Queue, Manager
-try:
-    from qwen_vl_utils import process_vision_info
-except Exception as err:
-    print("qwen_vl_utils not found, please install it via 'pip install qwen-vl-utils'")
-    raise err
 import os
+from PIL import Image
+from transformers import AutoProcessor, AutoModelForCausalLM
+from qwen_vl_utils import process_vision_info
+import copy
+import random
+random.seed(1234)
 
 
-DIRECT_PROMPT = "Directly answer the question with one option letter without explanation."
 DIRECT_MM_PROMPT = "Solve the multiple-choice question in image. Directly answer the question with one option letter without explanation."
-CoT_PROMPT = "Solve the multiple-choice question and then answer with one option letter. The last line of your response should be of the following format: 'Answer: LETTER' where LETTER is one of options. Think step by step before answering."
 CoT_MM_PROMPT = "Solve the multiple-choice question in image and then answer with one option letter. The last line of your response should be of the following format: 'Answer: LETTER' where LETTER is one of options. Think step by step before answering."
 
 
@@ -108,17 +106,24 @@ def parse_response(response, ans: str):
         for match in matches[::-1]:
             if match in all_choices or match.upper() in all_choices: 
                 return match
+        
     if ans != None:
         ans = ans.split('\n')
         for choice in ans:
             if f'answer: {choice.lower()}' in response.lower(): return choice[0]
             if f'answer:{choice.lower()}' in response.lower(): return choice[0]
+    
+    if "The answer is " in response:
+        return response.split("The answer is ")[-1].replace('.', '')
+    if "The correct answer is " in response:
+        return response.split("The correct answer is ")[-1].replace('.', '')
+    
     return None
 
-            
+
 def _get_args():
     parser = ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="Qwen/Qwen2.5-VL-7B-Instruct")
+    parser.add_argument("--model_path", type=str, default="lmms-lab/LLaVA-OneVision-1.5-8B-Instruct")
     parser.add_argument("--image_folder", type=str, default="./images")
     parser.add_argument("--json_file", type=str, default="LogicOCR.json")
     parser.add_argument("--output_folder", type=str, default="./res")
@@ -126,49 +131,42 @@ def _get_args():
     parser.add_argument("--answer_directly", action='store_true')
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--verbose", action='store_true')
-    parser.add_argument("--auto_device", action='store_true')
     args = parser.parse_args()
     return args
 
 
 def infer_worker(args, data, eval_id, output_queue):
     device =  f"cuda:{eval_id}"
-    if args.auto_device:
-        device = "auto"
     image_root = args.image_folder
     input_modal = args.lmm_input_modal
     model_path = args.model_path
     verbose = args.verbose
     
-    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            model_path,
+    model = AutoModelForCausalLM.from_pretrained(
+            model_path, 
             torch_dtype=torch.bfloat16,
             device_map=device,
-            attn_implementation="flash_attention_2"
+            attn_implementation="flash_attention_2",
+            trust_remote_code=True
         ).eval()
-    processor = AutoProcessor.from_pretrained(model_path)
+    processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
+    
     generate_kwargs = dict(
             max_new_tokens=2048,
-            temperature=0.01,
+            do_sample=False,
             use_cache=True,
         )
 
     for item in tqdm(data):
-        if input_modal == "text":
-            problem = 'Question: '+item["context"].strip()+' '+item["question"].strip()+'\nOptions:\n'+item["choices"]
-            if args.answer_directly:
-                prompt = problem + '\n' + DIRECT_PROMPT
-            else:
-                prompt = problem + '\n' + CoT_PROMPT
-            messages = [
-                {"role": "user", "content": [{"type": "text", "text": prompt}]}
-            ]
-        elif input_modal == "image-text":
+        if input_modal == "image-text":
             image_path = os.path.join(image_root, item["image"])
+            # image = Image.open(image_path).convert("RGB")
+            
             if args.answer_directly:
                 prompt = DIRECT_MM_PROMPT
             else:
                 prompt = CoT_MM_PROMPT
+            
             messages = [
                 {
                     "role": "user", 
@@ -178,33 +176,20 @@ def infer_worker(args, data, eval_id, output_queue):
                     ]
                 }
             ]
+            text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            image_inputs, video_inputs = process_vision_info(messages)
+            inputs = processor(text=[text], images=image_inputs, videos=video_inputs, padding=True, return_tensors="pt").to(model.device)
+            generated_ids = model.generate(**inputs, **generate_kwargs)
+            generated_ids_trimmed = [
+                    out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+                ]
+            response = processor.batch_decode(
+                    generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+                )[0]
         else:
             print("Unknown input modal.")
             raise ValueError
         
-        text = processor.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True,
-            )
-
-        image_inputs, video_inputs = process_vision_info(messages)
-        
-        inputs = processor(
-            text=[text],
-            images=image_inputs,
-            videos=video_inputs,
-            padding=True,
-            return_tensors="pt",
-            ).to(model.device)
-
-        generated_ids = model.generate(**inputs, **generate_kwargs)
-        generated_ids = [
-            out_ids[inputs.input_ids.shape[1]:] for out_ids in generated_ids
-        ]
-        response = processor.batch_decode(
-            generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
-            )[0]
         item["response"] = response
         
         score = 0
@@ -247,6 +232,7 @@ if __name__ == "__main__":
             )
     pool.close()
     pool.join()
+    # infer_worker(args, data_list[0], 0, output_queue)
     
     results = {}
     while not output_queue.empty():
@@ -256,9 +242,10 @@ if __name__ == "__main__":
     for i in range(len(data_list)):
         data.extend(results[i])
     
-    log_path = os.path.join(args.output_folder, model_name + f'_{args.lmm_input_modal}_{answer_mode}.json')
-    save_json(data, log_path)
-    print(f"save the predictions to {log_path}")
     
     scores = [dd["score"] for dd in data]
     print(f"Average score: {sum(scores)/len(scores)}")
+    
+    log_path = os.path.join(args.output_folder, model_name + f'_{args.lmm_input_modal}_{answer_mode}.json')
+    save_json(data, log_path)
+    print(f"save the predictions to {log_path}")
